@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>擬真語音互動測驗：Conflict and Hope in Ukraine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Confetti Library for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', 'Noto Sans TC', sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        /* Smooth Highlighting for Karaoke Mode */
+        .highlight-text {
+            background-color: #fef3c7; /* amber-100 */
+            color: #d97706; /* amber-600 */
+            padding: 2px 4px;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        /* Quiz Styles */
+        .quiz-option {
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .quiz-option:hover:not(.disabled) {
+            background-color: #f3f4f6;
+            border-color: #d1d5db;
+        }
+        .quiz-option.correct {
+            background-color: #ecfdf5 !important;
+            border-color: #10b981 !important;
+            color: #065f46;
+        }
+        .quiz-option.wrong {
+            background-color: #fef2f2 !important;
+            border-color: #ef4444 !important;
+            color: #991b1b;
+            opacity: 0.8;
+        }
+        .quiz-option.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .explanation-box {
+            display: none; /* Hidden by default */
+            margin-top: 10px;
+            font-size: 0.95em;
+            color: #4b5563;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #6366f1;
+            background-color: #f8fafc;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Interactive Vocabulary Styles */
+        .vocab-word {
+            border-bottom: 2px dotted #818cf8;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            color: #1e40af;
+            font-weight: 500;
+        }
+        .vocab-word:hover {
+            background-color: #e0e7ff;
+            color: #1e3a8a;
+        }
+        .vocab-word:active {
+            transform: scale(0.95);
+        }
+
+        /* Tooltip Style */
+        .vocab-tooltip {
+            visibility: hidden;
+            width: max-content;
+            min-width: 120px;
+            background-color: #1f2937;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 100;
+            bottom: 140%; /* Position above */
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            font-size: 0.9rem;
+            pointer-events: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            line-height: 1.4;
+        }
+        .vocab-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -6px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+        .vocab-word:hover .vocab-tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+        
+        /* POS Tag Style in Tooltip */
+        .pos-tag {
+            font-size: 0.75em;
+            text-transform: uppercase;
+            background-color: #4f46e5;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-right: 6px;
+            font-weight: bold;
+            color: #e0e7ff;
+        }
+
+        /* Translation Text Style */
+        .translation-text {
+            display: block;
+            font-size: 0.9em;
+            color: #6b7280;
+            margin-top: 4px;
+            margin-bottom: 12px;
+            padding-left: 8px;
+            border-left: 3px solid #e5e7eb;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        .translation-text.hidden {
+            display: none;
+        }
+        
+        /* Audio Wave Animation */
+        .equalizer {
+            display: flex;
+            align-items: flex-end;
+            height: 20px;
+            gap: 2px;
+        }
+        .bar {
+            width: 4px;
+            background: #fff;
+            animation: bounce 0ms infinite ease-in-out alternate;
+        }
+        .playing .bar {
+            animation-duration: 400ms;
+        }
+        .playing .bar:nth-child(1) { animation-delay: -0.2s; }
+        .playing .bar:nth-child(2) { animation-delay: -0.4s; }
+        .playing .bar:nth-child(3) { animation-delay: -0.6s; }
+        .playing .bar:nth-child(4) { animation-delay: -0.8s; }
+        @keyframes bounce {
+            0% { height: 3px; opacity: 0.5; }
+            100% { height: 20px; opacity: 1; }
+        }
+        
+        .hidden-content {
+            filter: blur(12px);
+            user-select: none;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen pb-12">
+
+    <!-- Navbar / Audio Player Sticky Header -->
+    <div class="sticky top-0 z-50 bg-indigo-700 text-white shadow-xl transition-all duration-300" id="audio-player-bar">
+        <div class="max-w-4xl mx-auto px-4 py-3">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-3">
+                
+                <!-- Left: Title & Status -->
+                <div class="flex items-center gap-3 w-full md:w-auto justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
+                            <i class="fas fa-headphones-alt text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-sm font-bold text-indigo-100 uppercase tracking-wide">Listening Quiz</h1>
+                            <div class="text-xs text-indigo-200 flex items-center gap-1" id="voice-indicator">
+                                <i class="fas fa-robot"></i> Initializing Voice...
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Play Button -->
+                    <button onclick="togglePlay()" class="md:hidden w-10 h-10 bg-white text-indigo-700 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition">
+                        <i class="fas fa-play" id="mobile-play-icon"></i>
+                    </button>
+                </div>
+
+                <!-- Center: Controls -->
+                <div class="flex items-center gap-4">
+                    <!-- Rewind -->
+                    <button onclick="restartAudio()" class="text-indigo-200 hover:text-white transition" title="Restart">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    
+                    <!-- Main Play Button (Desktop) -->
+                    <button onclick="togglePlay()" class="hidden md:flex w-12 h-12 bg-white text-indigo-700 rounded-full shadow-lg items-center justify-center hover:scale-105 transition hover:shadow-white/20">
+                        <i class="fas fa-play text-xl ml-1" id="main-play-icon"></i>
+                    </button>
+
+                    <!-- Visualizer -->
+                    <div class="equalizer" id="visualizer">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
+                </div>
+
+                <!-- Right: Settings -->
+                <div class="flex items-center gap-2 text-sm w-full md:w-auto justify-center md:justify-end border-t md:border-t-0 border-indigo-600 pt-2 md:pt-0 mt-2 md:mt-0">
+                    
+                    <!-- Translation Toggle -->
+                    <button onclick="toggleTranslation()" id="toggle-trans-btn" class="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold transition shadow border border-indigo-500">
+                        <i class="fas fa-language"></i> <span>翻譯</span>
+                    </button>
+
+                    <!-- Toggle Text -->
+                    <button onclick="toggleText()" id="toggle-text-btn" class="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-bold transition shadow">
+                        <i class="fas fa-eye-slash"></i> <span>Hide Text</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Progress Bar -->
+        <div class="w-full bg-indigo-900 h-1.5">
+            <div id="progress-bar" class="h-full bg-amber-400 w-0 transition-all duration-300"></div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-3xl mx-auto p-4 md:p-6 space-y-8">
+        
+        <!-- Image Card -->
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200">
+             <!-- Image with fallback -->
+             <div class="w-full h-64 md:h-80 bg-gray-200 relative overflow-hidden group">
+                <img 
+                    src="images/ukraine_war.jpg" 
+                    alt="Blue and yellow flag of Ukraine" 
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1645389659392-494d75d31958?q=80&w=1200&auto=format&fit=crop';"
+                >
+                
+                <!-- Dark Gradient Overlay for better text readability -->
+                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
+
+                <div class="absolute bottom-4 left-4 right-4 text-white">
+                    <div class="flex items-center gap-2 text-sm font-medium opacity-90 backdrop-blur-sm bg-black/30 w-fit px-3 py-1 rounded-full">
+                        <i class="fas fa-globe-europe"></i> Listening Focus: Conflict and Hope in Ukraine
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Content Area -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-gray-200 relative">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 pb-4 border-b">Conflict and Hope: The War in Ukraine</h2>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 text-sm text-blue-700">
+                <i class="fas fa-mouse-pointer mr-1"></i> <strong>Tip:</strong> 點擊單字可聽發音並查看解釋 (Click words to hear pronunciation)。
+            </div>
+
+            <!-- Hidden Message Overlay -->
+            <div id="hidden-overlay" class="hidden absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center rounded-2xl backdrop-blur-sm transition-all">
+                <div class="bg-indigo-100 p-6 rounded-full mb-4">
+                    <i class="fas fa-ear-listen text-4xl text-indigo-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Listen Carefully</h3>
+                <p class="text-gray-600 mb-6 text-center max-w-sm">The text is hidden to challenge your listening skills. Try to answer the questions by listening only!</p>
+                <button onclick="toggleText()" class="bg-indigo-600 text-white px-6 py-2 rounded-full hover:bg-indigo-700 transition shadow-lg">
+                    Show Text
+                </button>
+            </div>
+
+            <!-- Article Container (Sentences will be injected here via JS for control) -->
+            <div id="article-display" class="prose max-w-none text-gray-700 text-lg leading-relaxed space-y-4">
+                <!-- Content injected by JS -->
+            </div>
+        </div>
+
+        <!-- Quiz Area -->
+        <div class="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-gray-200">
+            <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                <span class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                    <i class="fas fa-pen"></i>
+                </span>
+                Comprehension Quiz
+            </h3>
+            
+            <form id="quizForm" class="space-y-8">
+                <!-- Questions will be generated here -->
+            </form>
+
+            <div class="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center">
+                <button type="button" onclick="showFinalScore()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold py-3 px-10 rounded-full shadow-lg transition transform hover:-translate-y-1 active:scale-95">
+                    Show Final Score
+                </button>
+                
+                <div id="score-card" class="hidden mt-6 text-center w-full bg-indigo-50 p-6 rounded-xl border border-indigo-100 animate-fade-in">
+                    <p class="text-gray-500 text-sm uppercase font-bold tracking-wider">Your Result</p>
+                    <div class="text-5xl font-extrabold text-indigo-600 my-2" id="final-score">0</div>
+                    <p id="feedback-msg" class="text-gray-700 font-medium"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data & State ---
+        
+        // Structured Article Data with Translations
+        const articleData = [
+            { en: "In February 2022, a major event shocked the world when Russia launched a full-scale invasion of its neighbor, Ukraine.", zh: "2022年2月，當俄羅斯對其鄰國烏克蘭發動全面入侵時，這個重大事件震驚了全世界。" },
+            { en: "This conflict is not just something in history books; it is a crisis happening right now.", zh: "這場衝突不僅僅是歷史書上的內容；這是一場正在發生的危機。" },
+            { en: "Ukraine is a large country in Eastern Europe that wants to remain independent and democratic.", zh: "烏克蘭是東歐的一個大國，它希望保持獨立和民主。" },
+            { en: "However, the Russian government disagreed with Ukraine's desire to join closer ties with Western nations.", zh: "然而，俄羅斯政府不同意烏克蘭希望與西方國家建立更緊密聯繫的願望。" },
+            { en: "This political disagreement quickly turned into a violent war, affecting millions of innocent lives.", zh: "這場政治分歧迅速演變成一場暴力戰爭，影響了數百萬無辜的生命。" },
+            
+            { en: "The impact of the war has been devastating for ordinary people.", zh: "這場戰爭對普通百姓的影響是毀滅性的。" },
+            { en: "Cities have been bombed, and essential services like electricity and water have often been cut off.", zh: "城市遭到轟炸，電力和水等基本服務經常被切斷。" },
+            { en: "Millions of Ukrainians, mostly women and children, became refugees.", zh: "數百萬烏克蘭人，主要是婦女和兒童，成為了難民。" },
+            { en: "They had to pack their bags in a hurry and flee to other countries for safety.", zh: "他們不得不匆忙打包行李，逃往其他國家尋求安全。" },
+            { en: "For teenagers in Ukraine, schools were closed, and their daily lives changed overnight.", zh: "對於烏克蘭的青少年來說，學校關閉了，他們的日常生活在一夜之間改變了。" },
+            { en: "Instead of worrying about homework, they had to worry about survival and the safety of their families.", zh: "他們不得不擔心生存和家人的安全，而不是擔心家庭作業。" },
+            
+            { en: "The global community responded quickly to the invasion.", zh: "國際社會對這次入侵迅速做出了反應。" },
+            { en: "Many countries imposed strict sanctions on Russia to punish its economy.", zh: "許多國家對俄羅斯實施了嚴厲的制裁，以懲罰其經濟。" },
+            { en: "At the same time, humanitarian aid poured into Ukraine.", zh: "與此同時，人道主義援助湧入烏克蘭。" },
+            { en: "People around the world sent food, medicine, and clothes.", zh: "世界各地的人們送來了食物、藥品和衣服。" },
+            { en: "Social media played a huge role in this war.", zh: "社群媒體在這場戰爭中扮演了巨大的角色。" },
+            { en: "Through apps like TikTok and Instagram, the world saw the reality of the conflict instantly.", zh: "透過 TikTok 和 Instagram 等應用程式，世界立即看到了衝突的真相。" },
+            { en: "This helped gather support for Ukraine but also spread some fake news that confused people.", zh: "這有助於聚集對烏克蘭的支持，但也傳播了一些令人困惑的假新聞。" },
+            
+            { en: "Despite the fear and destruction, the Ukrainian people have shown incredible resilience.", zh: "儘管充滿恐懼和破壞，烏克蘭人民展現了令人難以置信的韌性。" },
+            { en: "Ordinary citizens became heroes, volunteering to help their neighbors and defend their towns.", zh: "普通公民變成了英雄，志願幫助鄰居並保衛他們的城鎮。" },
+            { en: "Even in the darkest times, stories of hope and courage emerged.", zh: "即使在最黑暗的時刻，希望和勇氣的故事也隨之出現。" },
+            { en: "Musicians played instruments in bomb shelters to comfort others, and strangers opened their homes to refugees.", zh: "音樂家在防空洞裡演奏樂器來安慰他人，陌生人向難民敞開家門。" },
+            
+            { en: "The war in Ukraine teaches us that peace is fragile and must be protected.", zh: "烏克蘭的戰爭教會我們，和平是脆弱的，必須加以保護。" },
+            { en: "It reminds us that freedom comes with a cost.", zh: "它提醒我們，自由是需要代價的。" },
+            { en: "While the situation is complex, the human spirit's ability to endure and help one another remains a powerful force.", zh: "雖然局勢複雜，但人類忍受苦難和互助的精神仍然是一股強大的力量。" },
+            { en: "We should all hope for a peaceful resolution and a future where such conflicts are no longer necessary.", zh: "我們都應該期盼一個和平的解決方案，以及一個不再需要這種衝突的未來。" }
+        ];
+
+        const quizData = [
+            { id: 'q1', q: "1. When did the full-scale invasion of Ukraine begin?", options: {A: "February 2020", B: "February 2022", C: "March 2023", D: "January 2019"}, ans: 'B', expl: "文章第一句明確提到：In February 2022, a major event shocked the world..." },
+            { id: 'q2', q: "2. What is the main reason for the conflict mentioned in the text?", options: {A: "Ukraine wanted to ban the internet.", B: "Russia wanted to join the EU.", C: "Political disagreement over Ukraine's ties with the West.", D: "A dispute over a football match."}, ans: 'C', expl: "文中提到俄羅斯不同意烏克蘭希望與西方國家建立更緊密聯繫 (disagreed with Ukraine's desire to join closer ties with Western nations)。" },
+            { id: 'q3', q: "3. What does the word 'refugees' mean?", options: {A: "Soldiers who fight in a war.", B: "People who travel for fun.", C: "People forced to leave their country for safety.", D: "Politicians who make laws."}, ans: 'C', expl: "Refugees (難民) 是指為了安全而被迫離開國家的人 (flee to other countries for safety)。" },
+            { id: 'q4', q: "4. How did the war affect Ukrainian teenagers?", options: {A: "They got more holidays.", B: "Their schools were closed and lives changed.", C: "They stopped using phones.", D: "They moved to Russia."}, ans: 'B', expl: "第二段提到：schools were closed, and their daily lives changed overnight." },
+            { id: 'q5', q: "5. What are 'sanctions' in this context?", options: {A: "Awards for bravery.", B: "Types of missiles.", C: "Penalties to punish a country's economy.", D: "Food sent to help people."}, ans: 'C', expl: "Sanctions (制裁) 在文中是指用來懲罰經濟的手段 (punish its economy)。" },
+            { id: 'q6', q: "6. What role did social media play?", options: {A: "It was banned completely.", B: "It showed the reality of the conflict instantly.", C: "It was only used for dancing videos.", D: "It had no effect."}, ans: 'B', expl: "第三段提到透過社群媒體，世界立即看到了衝突的真相 (saw the reality of the conflict instantly)。" },
+            { id: 'q7', q: "7. What does 'resilience' mean?", options: {A: "Giving up easily.", B: "The ability to recover quickly from difficulties.", C: "Being very angry.", D: "Spending a lot of money."}, ans: 'B', expl: "Resilience (韌性) 指的是在困難中恢復或堅持的能力，文中描述人們展現勇氣並互助。" },
+            { id: 'q8', q: "8. How did ordinary citizens behave during the war?", options: {A: "They hid and did nothing.", B: "They became heroes and helped neighbors.", C: "They sold their houses.", D: "They stopped talking to each other."}, ans: 'B', expl: "第四段提到普通公民變成了英雄，志願幫助鄰居 (volunteering to help their neighbors)。" },
+            { id: 'q9', q: "9. Where did musicians play instruments to comfort others?", options: {A: "In big concert halls.", B: "On the battlefield.", C: "In bomb shelters.", D: "In expensive hotels."}, ans: 'C', expl: "文中提到音樂家在防空洞 (bomb shelters) 演奏。" },
+            { id: 'q10', q: "10. What is the lesson mentioned in the conclusion?", options: {A: "War is fun.", B: "We should buy more weapons.", C: "Peace is fragile and must be protected.", D: "History is boring."}, ans: 'C', expl: "最後一段開頭提到：peace is fragile and must be protected (和平是脆弱的，必須加以保護)。" }
+        ];
+
+        // Extended Vocabulary Dictionary with Part of Speech (POS)
+        const vocabulary = {
+            "invasion": { pos: "n.", trans: "入侵" },
+            "conflict": { pos: "n.", trans: "衝突" },
+            "crisis": { pos: "n.", trans: "危機" },
+            "independent": { pos: "adj.", trans: "獨立的" },
+            "democratic": { pos: "adj.", trans: "民主的" },
+            "government": { pos: "n.", trans: "政府" },
+            "western": { pos: "adj.", trans: "西方的" },
+            "violent": { pos: "adj.", trans: "暴力的" },
+            "innocent": { pos: "adj.", trans: "無辜的" },
+            "devastating": { pos: "adj.", trans: "毀滅性的" },
+            "essential": { pos: "adj.", trans: "必要的" },
+            "electricity": { pos: "n.", trans: "電力" },
+            "refugees": { pos: "n.", trans: "難民" },
+            "flee": { pos: "v.", trans: "逃離" },
+            "survival": { pos: "n.", trans: "生存" },
+            "global": { pos: "adj.", trans: "全球的" },
+            "imposed": { pos: "v.", trans: "強制實行" },
+            "strict": { pos: "adj.", trans: "嚴格的" },
+            "sanctions": { pos: "n.", trans: "制裁" },
+            "punish": { pos: "v.", trans: "懲罰" },
+            "economy": { pos: "n.", trans: "經濟" },
+            "humanitarian": { pos: "adj.", trans: "人道主義的" },
+            "aid": { pos: "n.", trans: "援助" },
+            "instantly": { pos: "adv.", trans: "立即地" },
+            "confused": { pos: "v.", trans: "使困惑" },
+            "destruction": { pos: "n.", trans: "破壞" },
+            "resilience": { pos: "n.", trans: "韌性" },
+            "citizens": { pos: "n.", trans: "公民" },
+            "volunteering": { pos: "v.", trans: "志願服務" },
+            "defend": { pos: "v.", trans: "保衛" },
+            "courage": { pos: "n.", trans: "勇氣" },
+            "emerged": { pos: "v.", trans: "出現" },
+            "instruments": { pos: "n.", trans: "樂器" },
+            "shelters": { pos: "n.", trans: "避難所" },
+            "comfort": { pos: "v.", trans: "安慰" },
+            "fragile": { pos: "adj.", trans: "脆弱的" },
+            "protected": { pos: "v.", trans: "被保護" },
+            "freedom": { pos: "n.", trans: "自由" },
+            "complex": { pos: "adj.", trans: "複雜的" },
+            "endure": { pos: "v.", trans: "忍受" },
+            "resolution": { pos: "n.", trans: "解決方案" }
+        };
+
+        let synth = window.speechSynthesis;
+        let sentences = [];
+        let currentSentenceIndex = 0;
+        let isPlaying = false;
+        let textHidden = false;
+        let showTranslation = false;
+        let selectedVoice = null;
+        let userScore = 0; 
+        
+        // --- Web Audio API Context ---
+        let audioCtx;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        
+        // --- Synthesized Sound Effects (No External Files Needed) ---
+        function playCorrectSound() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playFailSound() {
+            initAudioContext();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime); 
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3); 
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            renderArticle();
+            renderQuiz();
+            initVoice();
+        };
+
+        // --- 1. Smart Voice Engine (Neural Voice Engine) ---
+        function initVoice() {
+            const voiceStatus = document.getElementById('voice-indicator');
+            
+            const loadVoices = () => {
+                const voices = synth.getVoices();
+                if (voices.length > 0) {
+                    selectedVoice = voices.find(v => v.name === 'Google US English') || 
+                                    voices.find(v => v.name.includes('Microsoft') && v.name.includes('Natural') && v.lang.includes('en-US')) ||
+                                    voices.find(v => (v.name.includes('Siri') || v.name.includes('Enhanced') || v.name.includes('Premium')) && v.lang.includes('en-US')) ||
+                                    voices.find(v => v.name === 'Samantha') || 
+                                    voices.find(v => v.lang === 'en-US');
+                    
+                    if (selectedVoice) {
+                        let displayName = selectedVoice.name
+                            .replace('Microsoft', '')
+                            .replace('Google', '')
+                            .replace('English', '')
+                            .replace(' United States', '')
+                            .replace('(Natural) - Online', 'Natural')
+                            .trim();
+                        voiceStatus.innerHTML = `<i class="fas fa-check-circle text-green-300"></i> Voice: ${displayName.substring(0, 20)}`;
+                    } else {
+                        voiceStatus.innerHTML = `<i class="fas fa-exclamation-circle text-yellow-300"></i> Standard Voice`;
+                    }
+                }
+            };
+            loadVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
+
+        // --- 2. Render Article with Structured Data ---
+        function renderArticle() {
+            const displayArea = document.getElementById('article-display');
+            displayArea.innerHTML = '';
+            
+            let p = document.createElement('p');
+            displayArea.appendChild(p);
+            
+            sentences = []; // Reset sentences array
+            
+            articleData.forEach((item, index) => {
+                const spanEn = document.createElement('span');
+                
+                // Process words for dictionary lookup
+                spanEn.innerHTML = processWords(item.en);
+                
+                spanEn.id = `sent-${index}`;
+                spanEn.className = 'cursor-pointer hover:bg-gray-100 rounded transition leading-loose mr-1';
+                spanEn.onclick = (e) => {
+                    // Prevent playing full sentence if user clicked a vocab word
+                    if (e.target.classList.contains('vocab-word') || e.target.parentElement.classList.contains('vocab-word')) return;
+                    playFromSentence(index);
+                };
+                
+                // Add Sentence
+                p.appendChild(spanEn);
+                sentences.push({ text: item.en, id: `sent-${index}` });
+
+                // Add Translation (Hidden by default)
+                const divZh = document.createElement('div');
+                divZh.className = 'translation-text hidden';
+                divZh.innerText = item.zh;
+                p.appendChild(divZh);
+
+                // Paragraph break heuristic (every 5 sentences approx)
+                if(index > 0 && (index + 1) % 5 === 0) {
+                     p = document.createElement('p');
+                     displayArea.appendChild(p);
+                }
+            });
+        }
+
+        // Wrap words with definitions in a span
+        function processWords(text) {
+            const words = text.split(' ');
+            return words.map(word => {
+                const cleanWord = word.replace(/[.,!?;:()"]/g, "").toLowerCase();
+                const originalWord = word;
+                
+                if (vocabulary[cleanWord]) {
+                    const data = vocabulary[cleanWord];
+                    return `<span class="vocab-word" onclick="speakAndShowDef(event, '${cleanWord}')">${originalWord}<span class="vocab-tooltip"><span class="pos-tag">${data.pos}</span>${data.trans}</span></span>`;
+                }
+                return originalWord;
+            }).join(' ');
+        }
+        
+        function speakAndShowDef(e, word) {
+            e.stopPropagation(); // Stop the event from bubbling up to sentence click
+            
+            // Speak the word
+            synth.cancel(); // Stop current speech
+            const utterance = new SpeechSynthesisUtterance(word);
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 0.9; // Slower for single word
+            synth.speak(utterance);
+        }
+
+        function toggleTranslation() {
+            showTranslation = !showTranslation;
+            const transElements = document.querySelectorAll('.translation-text');
+            const btn = document.getElementById('toggle-trans-btn');
+            
+            transElements.forEach(el => {
+                if(showTranslation) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+
+            if(showTranslation) {
+                btn.classList.add('bg-indigo-600', 'ring-2', 'ring-indigo-300');
+                btn.innerHTML = '<i class="fas fa-check"></i> <span>隱藏翻譯</span>';
+            } else {
+                btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-300');
+                btn.innerHTML = '<i class="fas fa-language"></i> <span>顯示翻譯</span>';
+            }
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                pauseAudio();
+            } else {
+                playAudio();
+            }
+        }
+
+        function playAudio() {
+            isPlaying = true;
+            updatePlayBtn(true);
+            document.getElementById('visualizer').classList.add('playing');
+            
+            if (currentSentenceIndex >= sentences.length) {
+                currentSentenceIndex = 0;
+            }
+            speakSentence(currentSentenceIndex);
+        }
+
+        function speakSentence(index) {
+            if (!isPlaying || index >= sentences.length) {
+                if (index >= sentences.length) {
+                    isPlaying = false;
+                    updatePlayBtn(false);
+                    document.getElementById('visualizer').classList.remove('playing');
+                    currentSentenceIndex = 0;
+                    highlightSentence(-1);
+                }
+                return;
+            }
+
+            currentSentenceIndex = index;
+            highlightSentence(index);
+            updateProgressBar();
+
+            synth.cancel();
+
+            const text = sentences[index].text;
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 1.0; 
+            utterance.pitch = 1.05; 
+            
+            // Natural Pacing
+            utterance.onend = function() {
+                if (isPlaying) {
+                    setTimeout(() => {
+                        speakSentence(index + 1);
+                    }, 400); 
+                }
+            };
+            
+            utterance.onerror = function(e) {
+                console.error("Speech error", e);
+                isPlaying = false;
+                updatePlayBtn(false);
+            };
+
+            synth.speak(utterance);
+        }
+
+        function pauseAudio() {
+            isPlaying = false;
+            synth.cancel();
+            updatePlayBtn(false);
+            document.getElementById('visualizer').classList.remove('playing');
+        }
+
+        function restartAudio() {
+            synth.cancel();
+            currentSentenceIndex = 0;
+            updateProgressBar();
+            highlightSentence(-1);
+            if (isPlaying) {
+                setTimeout(() => speakSentence(0), 100);
+            }
+        }
+        
+        function playFromSentence(index) {
+            currentSentenceIndex = index;
+            isPlaying = true;
+            updatePlayBtn(true);
+            document.getElementById('visualizer').classList.add('playing');
+            speakSentence(index);
+        }
+
+        function updatePlayBtn(isPlay) {
+            const icons = [document.getElementById('main-play-icon'), document.getElementById('mobile-play-icon')];
+            icons.forEach(icon => {
+                if (isPlay) {
+                    icon.classList.remove('fa-play');
+                    icon.classList.add('fa-pause');
+                } else {
+                    icon.classList.remove('fa-pause');
+                    icon.classList.add('fa-play');
+                }
+            });
+        }
+
+        function highlightSentence(index) {
+            document.querySelectorAll('.highlight-text').forEach(el => el.classList.remove('highlight-text'));
+            
+            if (index >= 0 && index < sentences.length) {
+                const el = document.getElementById(sentences[index].id);
+                if (el) {
+                    el.classList.add('highlight-text');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+        
+        function updateProgressBar() {
+             const progress = ((currentSentenceIndex + 1) / sentences.length) * 100;
+             document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        function toggleText() {
+            textHidden = !textHidden;
+            const overlay = document.getElementById('hidden-overlay');
+            const btn = document.getElementById('toggle-text-btn');
+            
+            if (textHidden) {
+                overlay.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-eye"></i> <span>Show Text</span>';
+                btn.classList.replace('bg-amber-500', 'bg-indigo-500');
+                btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-600');
+            } else {
+                overlay.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i> <span>Hide Text</span>';
+                btn.classList.replace('bg-indigo-500', 'bg-amber-500');
+                btn.classList.replace('hover:bg-indigo-600', 'hover:bg-amber-600');
+            }
+        }
+
+        // --- Revised Interactive Quiz Logic ---
+
+        function renderQuiz() {
+            const form = document.getElementById('quizForm');
+            form.innerHTML = '';
+            
+            quizData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-5 rounded-xl border border-gray-200 shadow-sm transition';
+                div.innerHTML = `
+                    <p class="font-bold text-gray-800 mb-4 text-lg">${item.q}</p>
+                    <div class="space-y-3" id="${item.id}-options">
+                        ${Object.keys(item.options).map(key => `
+                            <label class="quiz-option flex items-center p-3 rounded-lg cursor-pointer border border-gray-200" id="${item.id}-label-${key}">
+                                <input type="radio" name="${item.id}" value="${key}" class="hidden" onclick="checkAnswer('${item.id}', '${key}')">
+                                <div class="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3 font-bold text-gray-500 transition-colors" id="${item.id}-icon-${key}">
+                                    ${key}
+                                </div>
+                                <span class="text-gray-700 font-medium">${item.options[key]}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div id="${item.id}-expl" class="explanation-box">
+                        <p class="font-bold mb-1" id="${item.id}-status"></p>
+                        <p>${item.expl}</p>
+                    </div>
+                `;
+                form.appendChild(div);
+            });
+        }
+
+        function checkAnswer(questionId, selectedKey) {
+            const questionObj = quizData.find(q => q.id === questionId);
+            if (!questionObj) return;
+
+            const isCorrect = selectedKey === questionObj.ans;
+            
+            // Visual feedback for selected option
+            const selectedLabel = document.getElementById(`${questionId}-label-${selectedKey}`);
+            const selectedIcon = document.getElementById(`${questionId}-icon-${selectedKey}`);
+            
+            if (isCorrect) {
+                playCorrectSound(); // Sound enabled for Quiz only (internal synth)
+                selectedLabel.classList.add('correct');
+                selectedIcon.classList.add('border-green-500', 'text-green-600', 'bg-green-100');
+                selectedIcon.innerHTML = '<i class="fas fa-check"></i>';
+                userScore += 10;
+            } else {
+                playFailSound(); // Sound enabled for Quiz only (internal synth)
+                selectedLabel.classList.add('wrong');
+                selectedIcon.classList.add('border-red-500', 'text-red-600', 'bg-red-100');
+                selectedIcon.innerHTML = '<i class="fas fa-times"></i>';
+                
+                // Highlight the correct answer
+                const correctLabel = document.getElementById(`${questionId}-label-${questionObj.ans}`);
+                const correctIcon = document.getElementById(`${questionId}-icon-${questionObj.ans}`);
+                correctLabel.classList.add('correct');
+                correctIcon.classList.add('border-green-500', 'text-green-600', 'bg-green-100');
+                correctIcon.innerHTML = '<i class="fas fa-check"></i>';
+            }
+
+            const optionsDiv = document.getElementById(`${questionId}-options`);
+            const inputs = optionsDiv.querySelectorAll('input');
+            const labels = optionsDiv.querySelectorAll('label');
+            
+            inputs.forEach(input => input.disabled = true);
+            labels.forEach(label => label.classList.add('disabled'));
+
+            const explBox = document.getElementById(`${questionId}-expl`);
+            const statusText = document.getElementById(`${questionId}-status`);
+            
+            explBox.style.display = 'block';
+            if (isCorrect) {
+                explBox.style.borderLeftColor = '#10b981';
+                statusText.innerHTML = '<i class="fas fa-check-circle text-green-600"></i> Correct!';
+                statusText.className = "font-bold mb-1 text-green-700";
+            } else {
+                explBox.style.borderLeftColor = '#ef4444';
+                statusText.innerHTML = `<i class="fas fa-times-circle text-red-600"></i> Incorrect. The correct answer is ${questionObj.ans}.`;
+                statusText.className = "font-bold mb-1 text-red-700";
+            }
+        }
+
+        function showFinalScore() {
+            const scoreDisplay = document.getElementById('final-score');
+            const feedback = document.getElementById('feedback-msg');
+            const resultCard = document.getElementById('score-card');
+            
+            resultCard.classList.remove('hidden');
+            scoreDisplay.innerText = `${userScore} / 100`;
+            
+            if (userScore >= 80) {
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#6366f1', '#fbbf24', '#10b981', '#f472b6']
+                });
+                
+                if (userScore === 100) {
+                    setTimeout(() => {
+                        confetti({
+                            particleCount: 100,
+                            angle: 60,
+                            spread: 55,
+                            origin: { x: 0 }
+                        });
+                        confetti({
+                            particleCount: 100,
+                            angle: 120,
+                            spread: 55,
+                            origin: { x: 1 }
+                        });
+                    }, 500);
+                    feedback.innerText = "Perfect! Your listening is amazing!";
+                } else {
+                    feedback.innerText = "Great job! Almost perfect.";
+                }
+            } else if (userScore >= 60) {
+                feedback.innerText = "Good pass. Review the text and try again.";
+            } else {
+                feedback.innerText = "Don't give up! Listen to the audio a few more times.";
+            }
+            
+            resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+</body>
+</html>
